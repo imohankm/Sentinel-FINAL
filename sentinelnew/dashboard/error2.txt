@@ -1,0 +1,17 @@
+﻿Scan started. Waiting 18 seconds for completion rendering...
+
+--- PAGE ERROR ---
+ Cannot read properties of undefined (reading 'agent') TypeError: Cannot read properties of undefined (reading 'agent')
+    at <anonymous> (http://localhost:5173/src/App.jsx?t=1775631395808:626:58)
+    at <anonymous> (http://localhost:5173/src/App.jsx?t=1775631395808:626:33)
+    at App (http://localhost:5173/src/App.jsx?t=1775631395808:625:13)
+    at react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=da56fcdf:12867:12)
+    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=da56fcdf:4212:19)
+    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=da56fcdf:5568:16)
+    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=da56fcdf:6139:20)
+    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=da56fcdf:850:66)
+    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=da56fcdf:8428:92)
+    at workLoopSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=da56fcdf:8324:37) 
+-------------------
+
+Finished waiting. Checking if we caught any errors.

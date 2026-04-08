@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 320px;
+            background: #0B1220; /* deep navy */
+            font-family: "Segoe UI", sans-serif;
+            color: #E5E7EB;
+            overflow-x: hidden;
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        #sentinel-app {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .title-area h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00F5A0, #3B82F6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .title-area .subtitle {
+            font-size: 11px;
+            color: #9CA3AF;
+        }
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: #9CA3AF;
+            font-size: 16px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close-btn:hover { color: #EF4444; }
+
+        /* THREAT STATUS CARD */
+        .threat-card {
+            background: #111827;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .threat-level { transition: color 0.3s ease; font-weight: 600; }
+        .threat-level.default { color: #9CA3AF; }
+        .threat-level.low { color: #00F5A0; text-shadow: 0 0 8px rgba(0,245,160,0.4); }
+        .threat-level.medium { color: #FACC15; text-shadow: 0 0 8px rgba(250,204,21,0.4); }
+        .threat-level.high { color: #EF4444; text-shadow: 0 0 8px rgba(239,68,68,0.4); animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        /* ACTIONS */
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .actions button {
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+        .actions button:active {
+            transform: scale(0.97);
+        }
+        .btn-primary {
+            background: transparent;
+            border: 1px solid #00F5A0;
+            color: #00F5A0;
+        }
+        .btn-primary:hover {
+            background: #00F5A0;
+            color: #0B1220;
+            box-shadow: 0 0 15px rgba(0, 245, 160, 0.4);
+        }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid #3B82F6;
+            color: #3B82F6;
+        }
+        .btn-secondary:hover {
+            background: rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+        }
+
+        /* AI STEPS */
+        .ai-steps {
+            font-size: 12px;
+            color: #9CA3AF;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: #111827;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px dashed rgba(255,255,255,0.1);
+        }
+        .step { transition: color 0.3s ease; }
+        .step.active { color: #3B82F6; }
+        .step.done { color: #00F5A0; }
+
+        /* SCAN RESULT SUMMARY */
+        .result-area {
+            background: #111827;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-left: 4px solid #EF4444; /* changes dynamically */
+        }
+        .result-item { display: flex; align-items: flex-start; gap: 8px; }
+        .danger-text { color: #EF4444; margin-top: 4px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div id="sentinel-app">
+        <!-- 🔴 Header -->
+        <div class="header">
+            <div class="title-area">
+                <h2>SentinelAI</h2>
+                <div class="subtitle">Client Intelligence</div>
+            </div>
+            <button id="closeBtn" class="close-btn">✕</button>
+        </div>
+
+        <!-- 🧠 Status / Threat Level -->
+        <div class="threat-card" id="threatCard">
+            <div class="status-row">
+                <span>Threat Level:</span>
+                <span id="threatLevel" class="threat-level default">--</span>
+            </div>
+            <div class="status-row">
+                <span>Risk Score:</span>
+                <span id="riskScore" style="color: #9CA3AF; font-weight: 600;">--</span>
+            </div>
+        </div>
+
+        <!-- ⚡ Action Buttons -->
+        <div class="actions">
+            <button id="scanBtn" class="btn-primary">
+                ⚡ Run Agentic Scan
+            </button>
+            <button id="dashboardBtn" class="btn-secondary">
+                📊 Open Dashboard
+            </button>
+        </div>
+
+        <!-- 📝 AI Steps Loading (Hidden initially) -->
+        <div class="ai-steps" id="aiSteps" style="display: none;">
+            <div id="step1" class="step">[ ] Collecting data...</div>
+            <div id="step2" class="step">[ ] Analyzing scripts...</div>
+            <div id="step3" class="step">[ ] Detecting threats...</div>
+        </div>
+
+        <!-- 📊 Scan Result Summary -->
+        <div class="result-area" id="resultArea" style="display: none;">
+            <div class="result-item" id="resVuln">✔ 0 vulnerabilities detected</div>
+            <div class="result-item" id="resRisk">✔ Risk Score: --</div>
+            <div class="result-item danger-text" id="resMsg">⚠ Inspecting...</div>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
