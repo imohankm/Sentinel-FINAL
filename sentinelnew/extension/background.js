@@ -10,7 +10,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             body: JSON.stringify(message.payload)
         })
         .then(response => response.json())
-        .then(data => sendResponse({ success: true, risk_score: data.risk_score }))
+        .then(data => sendResponse({ success: true, ...data }))
         .catch(err => {
             console.error('FastAPI Backend Error:', err);
             sendResponse({ success: false, error: err.message });

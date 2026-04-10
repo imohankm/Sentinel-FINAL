@@ -1,233 +1,520 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Shield, ShieldAlert, Cpu, Network, User, Search, Zap, AlertTriangle, CheckCircle, Target, Database, Activity, Lock, Unlock, ArrowRight, ChevronDown, ChevronUp, Server, LayoutGrid } from 'lucide-react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Shield, Activity, Server, AlertTriangle, ArrowRight, Zap, Target, Globe, Filter, Search, Info, Eye, Layers, Cpu,
+  Terminal as ConsoleIcon, Clock
+} from 'lucide-react';
+import { 
+  ResponsiveContainer, AreaChart, Area 
+} from 'recharts';
+
 import './index.css';
 
-const AI_AGENTS = [
-  { id: 'agent-recon', name: 'Recon Agent', color: '#00F5FF', icon: Search },
-  { id: 'agent-strategy', name: 'Logic Engine', color: '#7C3AED', icon: Cpu },
-  { id: 'agent-exploit', name: 'Exploit Sim', color: '#FF3B3B', icon: Zap }
-];
-
-const ATTACK_LOGS = [
-  { agent: 'agent-strategy', text: 'Initializing target analysis on localhost:8080...', delay: 500 },
-  { agent: 'agent-recon', text: 'Scanning exposed endpoints. 3 vulnerabilities identified.', delay: 1500 },
-  { agent: 'agent-recon', text: 'Admin login form located. No CAPTCHA detected.', delay: 2800 },
-  { agent: 'agent-strategy', text: 'Insecure HTTP detected. Flagging network interception risk.', delay: 4000 },
-  { agent: 'agent-exploit', text: 'Simulating brute force... High probability of success.', delay: 5500 },
-  { agent: 'agent-recon', text: 'Found exposed internal API refs in frontend scripts.', delay: 7000 },
-  { agent: 'agent-strategy', text: 'Systemic risk calculated at 90%. Synthesis complete.', delay: 8500 }
-];
-
-const vulns = [
-  { level: 'CRITICAL', color: '#FF3B3B', title: 'Brute Force Risk', desc: 'No rate-limiting or CAPTCHA detected on primary login interface.', impact: 'High probability of account takeover via automated credential stuffing.', fix: 'Implement strict rate limiting and integrate Google reCAPTCHA v3.' },
-  { level: 'HIGH', color: '#FF8A00', title: 'Insecure Network Transmission', desc: 'HTTP protocol in use. Sensitive data transmitted in plaintext.', impact: 'Session hijacking targeting local networks.', fix: 'Enforce HTTPS globally using TLS 1.2+ configuration.' }
-];
-
-const vulnChart = [{ name: 'Critical', count: 1, color: '#FF3B3B' }, { name: 'High', count: 1, color: '#FF8A00' }, { name: 'Medium', count: 1, color: '#FFD600' }];
-const atkData = [{ name: 'Brute Force', successRate: 95 }, { name: 'Misconfig', successRate: 80 }, { name: 'API Exfil', successRate: 65 }];
-const breakdown = [{ name: 'Auth Security', score: 20 }, { name: 'Network', score: 40 }, { name: 'API', score: 30 }];
+// Premium Enterprise Components
+import ExposureRing from './components/ExposureRing';
+import TerminalPanel from './components/TerminalPanel';
+import AssetCard from './components/AssetCard';
+import MetricCard from './components/MetricCard';
+import InsightCard from './components/InsightCard';
+import SeverityBadge from './components/SeverityBadge';
+import RiskAccordion from './components/RiskAccordion';
+import AppSidebar from './components/AppSidebar';
+import ArchiveTable from './components/ArchiveTable';
+import ScanOverlay from './components/ScanOverlay';
+import AttackFlow from './components/AttackFlow';
+import AddTargetModal from './components/AddTargetModal';
+import TopHeader from './components/TopHeader';
 
 export default function App() {
-  const [targetUrl, setTargetUrl] = useState('http://localhost:8080');
+  const [view, setView] = useState('login');
+  const [user, setUser] = useState(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isAddTargetModalOpen, setIsAddTargetModalOpen] = useState(false);
+  
+  const [targets, setTargets] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [history, setHistory] = useState([]);
+  
   const [state, setState] = useState('idle');
+  const [selectedTarget, setSelectedTarget] = useState(null);
+  const [showScanOverlay, setShowScanOverlay] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [showCharts, setShowCharts] = useState(false);
-  const [expanded, setExpanded] = useState({});
-  const logsRef = useRef(null);
+  const [vulns, setVulns] = useState([]);
+  const [riskScore, setRiskScore] = useState(0);
+  const [currentScanId, setCurrentScanId] = useState(null);
+  
+  const [loginHistory, setLoginHistory] = useState([]);
+  const [activity, setActivity] = useState(null);
+  const [fullUser, setFullUser] = useState(null);
+  
+  const pollInterval = useRef(null);
 
-  useEffect(() => { logsRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [logs]);
+  useEffect(() => {
+    const savedUser = localStorage.getItem('sentinel_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+      setView('home');
+    }
+  }, []);
 
-  const start = () => {
-    if (!targetUrl) return;
-    setState('scanning'); setLogs([]); setShowCharts(false);
-    ATTACK_LOGS.forEach((log, i) => {
-      setTimeout(() => {
-        setLogs(p => [...p, { ...log, id: Math.random() }]);
-        if (i === ATTACK_LOGS.length - 1) setTimeout(() => { setState('complete'); setShowCharts(true); }, 1000);
-      }, log.delay);
-    });
+  useEffect(() => {
+    if (user) {
+        if (view === 'home') fetchStats();
+        if (view === 'targets') fetchTargets();
+        if (view === 'history') fetchHistory();
+    }
+  }, [user, view]);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/stats?org_id=${user.org_id}`);
+      const data = await res.json();
+      setStats(data);
+    } catch (e) { console.error("Stats Error:", e); }
   };
 
+  const fetchTargets = async () => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/targets?org_id=${user.org_id}`);
+      const data = await res.json();
+      setTargets(data);
+    } catch (e) { console.error("Targets Error:", e); }
+  };
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/history?org_id=${user.org_id}`);
+      const data = await res.json();
+      setHistory(data);
+    } catch (e) { console.error("History Error:", e); }
+  };
+
+  const fetchLoginHistory = async () => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/user/logins?user_id=${user.id}`);
+      if (!res.ok) throw new Error("Telemetry Feed Unavailable");
+      const data = await res.json();
+      setLoginHistory(Array.isArray(data) ? data : []);
+    } catch (e) { 
+        console.error("Login History Error:", e); 
+        setLoginHistory([]);
+    }
+  };
+
+  const fetchFullUser = async () => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/user/me?user_id=${user.id}`);
+      const data = await res.json();
+      setFullUser(data);
+    } catch (e) { console.error("Full User Error:", e); }
+  };
+
+  const fetchActivity = async () => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/user/activity?user_id=${user.id}`);
+      const data = await res.json();
+      setActivity(data);
+    } catch (e) { console.error("Activity Error:", e); }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    const formData = new FormData(e.target);
+    const email = formData.get('email');
+    const password = formData.get('password');
+
+    try {
+      const res = await fetch('http://localhost:8000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser(data.user);
+        localStorage.setItem('sentinel_user', JSON.stringify(data.user));
+        setView('home');
+      } else {
+        alert("ACCESS_DENIED: Invalid Handshake");
+      }
+    } catch (e) {
+      alert("CONNECTION_FAILURE: Sentinel API Offline");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const runAudit = async (target) => {
+    setSelectedTarget(target);
+    setShowScanOverlay(true);
+    setLogs([]);
+    setVulns([]);
+    setRiskScore(0);
+    
+    try {
+      const res = await fetch('http://localhost:8000/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_id: target.id, url: target.url, org_id: user.org_id, user_id: user.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+         setCurrentScanId(data.scan_id);
+      }
+    } catch (e) { console.error("Analysis Request Failed", e); }
+  };
+
+  const onScanAnimationComplete = () => {
+    setShowScanOverlay(false);
+    setView('report');
+    if (currentScanId) {
+        pollInterval.current = setInterval(() => pollReport(currentScanId), 1000);
+    }
+  };
+
+  const pollReport = async (scanId) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/report?scan_id=${scanId}`);
+      const data = await res.json();
+      
+      setLogs(data.logs || []);
+      setRiskScore(data.score || 0);
+      setVulns(data.findings || []);
+      setState(data.status || 'running');
+      
+      if (data.status === 'complete' || data.status === 'failed') {
+        clearInterval(pollInterval.current);
+      }
+    } catch (e) { console.error("Poll Error:", e); }
+  };
+
+  const openReportFromArchive = (archiveItem) => {
+    setSelectedTarget({ name: archiveItem.target_name, url: archiveItem.target_url });
+    setView('report');
+    setCurrentScanId(archiveItem.id);
+    pollReport(archiveItem.id);
+  };
+
+  const logout = () => {
+    localStorage.removeItem('sentinel_user');
+    setUser(null);
+    setView('login');
+  };
+
+  useEffect(() => {
+    if (user && view === 'home') {
+       fetchFullUser();
+       fetchActivity();
+    }
+  }, [user, view]);
+
+  // -------------------------------------------------------------------------
+  // VIEW: LOGIN
+  // -------------------------------------------------------------------------
+  if (view === 'login') return (
+    <div className="flex items-center justify-center min-h-screen bg-bg relative px-24 overflow-hidden">
+      <div className="bg-cyber-grid" />
+      <div className="scanline" />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }} 
+        animate={{ opacity: 1, scale: 1 }} 
+        className="card glass w-full max-w-[440px] shadow-2xl z-10 p-[64px] border-primary/20 relative"
+      >
+        <div className="absolute top-0 right-0 w-120 h-120 bg-primary/5 blur-[80px] rounded-full" />
+        
+        <div className="flex flex-col items-center text-center relative z-10">
+            <div className="w-90 h-90 rounded-[28px] bg-primary/10 flex items-center justify-center text-primary mb-32 border border-primary/20 glow-primary">
+                <Shield size={42} strokeWidth={1} />
+            </div>
+            
+            <div className="mb-48">
+               <h1 className="title-xl mb-4 tracking-tight">SentinelAI</h1>
+               <p className="label-caps !text-[11px] opacity-60">Enterprise Security Monitoring Portal</p>
+               <p className="text-[10px] text-primary/40 mt-8 font-bold uppercase tracking-[2px]">Authorized Access Only</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="w-full flex flex-col gap-24">
+                <div className="flex flex-col items-start gap-8 group">
+                    <span className="label-caps !text-[9px] opacity-40 ml-4 group-focus-within:opacity-100 transition-opacity">Corporate Identity</span>
+                    <input 
+                      name="email" 
+                      className="input-field !bg-background/40 focus:!bg-background/60" 
+                      placeholder="Corporate Email"
+                      required 
+                    />
+                </div>
+                <div className="flex flex-col items-start gap-8 group">
+                    <span className="label-caps !text-[9px] opacity-40 ml-4 group-focus-within:opacity-100 transition-opacity">Security Key</span>
+                    <input 
+                      name="password" 
+                      type="password" 
+                      className="input-field !bg-background/40 focus:!bg-background/60" 
+                      placeholder="Password"
+                      required 
+                    />
+                </div>
+                <button type="submit" className="btn btn-primary w-full !py-18 mt-12 pulse-primary group" disabled={isLoggingIn}>
+                    <span className="flex items-center gap-12 font-bold tracking-wider">
+                       {isLoggingIn ? "VALIDATING IDENTITY..." : "ESTABLISH SECURE UPLINK"}
+                       <ArrowRight size={18} className="group-hover:translate-x-4 transition-transform" />
+                    </span>
+                </button>
+            </form>
+        </div>
+      </motion.div>
+    </div>
+  );
+
   return (
-    <div className="app-container">
-      <div className="bg-particles" />
-      {state === 'scanning' && <div className="scanner-line"></div>}
+    <div
+      style={{
+        height: "100vh",
+        display: "grid",
+        gridTemplateColumns: "280px 1fr",
+        background: "#050816",
+        color: "#E5F0FF",
+        overflow: "hidden"
+      }}
+    >
+      <ScanOverlay show={showScanOverlay} onComplete={onScanAnimationComplete} />
 
-      {/* SIDEBAR: 280px width */}
-      <aside className="sidebar glass-panel">
-        <div className="logo-section">
-          <ShieldAlert size={32} color="#00F5FF" className="glow-icon" />
-          <h1 className="text-gradient-cyan logo-text">SentinelAI</h1>
-        </div>
-
-        <div className="sidebar-section">
-          <div className="section-title">Target Config</div>
-          <input className="input-field glow-input" value={targetUrl} onChange={e => setTargetUrl(e.target.value)} disabled={state === 'scanning'} placeholder="Enter target URL..." />
-          <button className="cyber-btn run-scan-btn w-full mt-16" onClick={start} disabled={state === 'scanning' || !targetUrl}>
-            {state === 'scanning' ? <><Activity className="spin text-cyan" size={16}/> SCANNING</> : 'RUN AI SCAN'}
-          </button>
-        </div>
-
-        <div className="sidebar-section">
-          <div className="section-title">Status</div>
-          <div className="status-box glass-panel inner">
-            {state === 'idle' && <><div className="dot idle"/> Idle</>}
-            {state === 'scanning' && <><Activity className="spin text-cyan" size={16}/> <span className="text-cyan glow-text font-bold">Scanning Target</span></>}
-            {state === 'complete' && <><CheckCircle size={16} color="#00FF9D"/> <span className="text-green glow-text font-bold">Scan Complete</span></>}
-          </div>
-        </div>
-
-        <div className="sidebar-section">
-          <div className="section-title">AI Agents</div>
-          <div className="agents-list">
-            {AI_AGENTS.map(ag => {
-              const Icon = ag.icon;
-              const isRun = state === 'scanning' && logs.some(l => l.agent === ag.id);
-              const color = isRun ? ag.color : (state === 'complete' ? '#00FF9D' : '#555');
-              return (
-                <div key={ag.id} className="agent-item glass-panel inner">
-                  <div className={`dot ${isRun ? 'pulse' : ''}`} style={{background: color}}/>
-                  <Icon size={14} color={ag.color} />
-                  <span className="agent-name">{ag.name}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="risk-score-wrapper mt-auto">
-          <div className="section-title text-center">System Risk Level</div>
-          <div className={`hero-score ${state === 'complete' ? 'danger' : ''}`}>
-            <span className="score-text">{state === 'complete' ? '90' : '--'}<span>%</span></span>
-          </div>
-          
-          {/* Security Breakdown Bars */}
-          <div className={`breakdown-list ${state === 'complete' ? 'fade-in' : 'hidden'}`}>
-             {breakdown.map((b, i) => (
-                <div key={i} className="breakdown-item">
-                  <div className="bd-header"><span>{b.name}</span> <span className="text-red">{b.score}%</span></div>
-                  <div className="bd-bar"><div className="bd-fill bg-red" style={{width: `${b.score}%`}}/></div>
-                </div>
-             ))}
-          </div>
-        </div>
+      <aside
+        style={{
+          borderRight: "1px solid rgba(34,211,238,0.08)",
+          background: "#06101F",
+          height: "100vh",
+          overflowY: "auto"
+        }}
+      >
+        <AppSidebar 
+          view={view} 
+          setView={setView} 
+          user={fullUser || user} 
+          onLogout={logout}
+        />
       </aside>
 
-      {/* MAIN CONTENT: flex-1 */}
-      <main className="main-content">
-        {state === 'idle' ? (
-          <div className="empty-state glass-panel">
-            <Target size={64} className="text-gray-dim" />
-            <h2>AWAITING TARGET</h2>
-            <p>Enter a URL and run an AI scan to analyze target surface.</p>
-          </div>
-        ) : state === 'scanning' && !showCharts ? (
-          <div className="loading-state">
-            <Activity className="spin-slow text-cyan icon-lg mb-24" size={64} />
-            <h2 className="text-gradient-cyan pulse-opacity">AI AGENTS ANALYZING...</h2>
-            <div className="loading-timeline mt-24">
-               {['Recon', 'Detection', 'Exploit', 'Risk'].map((step, i) => (
-                 <div key={i} className="time-node delay-1 text-cyan">{step}</div>
-               ))}
-            </div>
-          </div>
-        ) : (
-          <div className="dashboard-wrapper">
-            
-            {/* TARGET SUMMARY BANNER */}
-            <div className="target-summary glass-panel animate-fade-up">
-              <div className="sum-item"><Server className="text-cyan"/><div className="val">{targetUrl}</div></div>
-              <div className="sum-divider" />
-              <div className="sum-item"><Network className="text-purple"/><div className="val">3 Open Ports</div></div>
-              <div className="sum-divider" />
-              <div className="sum-item"><LayoutGrid className="text-orange"/><div className="val">12 Endpoints</div></div>
-              <div className="sum-divider" />
-              <div className="sum-item"><AlertTriangle className="text-red"/><div className="val text-red">HIGH RISK</div></div>
-            </div>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden"
+        }}
+      >
+        <TopHeader 
+          user={fullUser || user}
+          activity={activity}
+          onOpenProfile={() => {
+              fetchLoginHistory();
+              fetchActivity();
+          }}
+          onLogout={logout}
+        />
 
-            <div className="dashboard-grid">
-              {/* ROW 1: 50% / 50% */}
-              <div className="row grid-2">
-                <div className="card glass-panel animate-fade-up delay-1">
-                  <div className="card-header"><PieChart size={18} className="text-cyan"/> <h3>Risk Overview</h3></div>
-                  <div className="card-body">
-                    <ResponsiveContainer><PieChart><Pie data={vulnChart} innerRadius={80} outerRadius={100} dataKey="count" stroke="none">{vulnChart.map((e, i) => <Cell key={i} fill={e.color}/>)}</Pie></PieChart></ResponsiveContainer>
-                    <div className="chart-center-text">3</div>
-                  </div>
+        <AddTargetModal 
+          isOpen={isAddTargetModalOpen}
+          onClose={() => setIsAddTargetModalOpen(false)}
+          onAdd={fetchTargets}
+          user={user}
+        />
+
+        <main
+          style={{
+            padding: "24px 28px 32px",
+            flex: 1,
+            overflowY: "auto"
+          }}
+        >
+          <AnimatePresence mode="wait">
+          {/* 1. MISSION OVERVIEW */}
+          {view === 'home' && (
+            <motion.div 
+              key="home" 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }}
+              style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+            >
+              <div className="card card-hero grid grid-cols-12 gap-64 items-center border-primary/10 overflow-visible relative">
+                <div className="bg-cyber-grid !opacity-20" />
+                <div className="col-span-4 flex justify-center relative">
+                    <div className="absolute inset-0 bg-primary/5 blur-[100px] rounded-full" />
+                    <ExposureRing score={stats?.risk_trend ? stats.risk_trend[stats.risk_trend.length-1] : 42} size="large" />
                 </div>
-
-                <div className="card glass-panel animate-fade-up delay-2">
-                  <div className="card-header"><Zap size={18} className="text-purple"/> <h3>Attack Vector Strength</h3></div>
-                  <div className="card-body pl-8">
-                    <ResponsiveContainer><BarChart data={atkData} layout="vertical"><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={100} tick={{fill: '#e5e7eb'}} /><Bar dataKey="successRate" fill="#7C3AED" radius={[0,6,6,0]} barSize={24} /></BarChart></ResponsiveContainer>
+                <div className="col-span-8 relative z-10">
+                  <div className="flex items-center gap-16 mb-24">
+                     <span className="badge badge-success flex items-center gap-8 py-6 px-12 glow-primary animate-pulse-soft">
+                        <div className="w-8 h-8 rounded-full bg-success pulse-dot" /> 
+                        Monitoring Live
+                     </span>
+                     <span className="badge badge-primary flex items-center gap-8 py-6 px-12 glow-primary">
+                        🔐 Secure Uplink Active
+                     </span>
+                  </div>
+                  <h1 className="title-xl !text-[48px] mb-16 tracking-tight leading-tight">SentinelAI <span className="text-primary/60">Live Security Operations</span></h1>
+                  <p className="text-text-secondary text-[15px] leading-relaxed max-w-[620px] mb-40 opacity-80 font-medium">
+                    Continuously monitoring approved enterprise targets in real time. 
+                    Orchestrating autonomous security validation across internal cluster nodes.
+                  </p>
+                  
+                  <div className="flex gap-20">
+                    <button onClick={() => setView('targets')} className="btn btn-primary !px-32 !py-16 group">
+                       <span className="flex items-center gap-12 text-sm font-bold">
+                          VIEW TARGET FLEET <ArrowRight size={18} className="group-hover:translate-x-4 transition-transform" />
+                       </span>
+                    </button>
+                    <button onClick={() => setView('history')} className="btn btn-outline !px-32 !py-16 text-sm font-bold">
+                      REVIEW ARCHIVES
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* ROW 2: 65% / 35% */}
-              <div className="row grid-auto-sidebar">
-                <div className="card glass-panel animate-fade-up delay-3 list-wrapper h-full">
-                  <div className="card-header"><AlertTriangle size={18} className="text-orange"/> <h3>Vulnerability Intelligence</h3></div>
-                  <div className="card-body scroll-y">
-                    {vulns.map((v, i) => (
-                      <div key={i} className={`vuln-item br-${v.level}`} onClick={() => setExpanded(p=>({...p, [i]:!p[i]}))}>
-                        <div className="vuln-header-bar">
-                          <span className={`badge bg-${v.level}`}>{v.level}</span>
-                          <h4>{v.title}</h4>
-                          {expanded[i] ? <ChevronUp size={16} className="text-gray"/> : <ChevronDown size={16} className="text-gray"/>}
+              <div className="grid grid-cols-4 gap-24">
+                <MetricCard 
+                    label="Approved Targets" 
+                    value={stats?.total_targets || 3} 
+                    icon={Server} 
+                    color="text-primary" 
+                />
+                <MetricCard 
+                    label="Audits Today" 
+                    value={stats?.total_scans || 12} 
+                    icon={Activity} 
+                    color="text-secondary" 
+                />
+                <MetricCard 
+                    label="Open Findings" 
+                    value={12} 
+                    icon={AlertTriangle} 
+                    color="text-danger" 
+                />
+                <MetricCard 
+                    label="Fleet Health" 
+                    value="94%" 
+                    icon={Shield} 
+                    color="text-success" 
+                />
+              </div>
+
+              <div className="grid grid-cols-12 gap-24 h-[360px]">
+                <div className="col-span-8 card flex flex-col">
+                    <div className="flex justify-between items-center mb-32">
+                        <div className="flex flex-col gap-4">
+                           <h3 className="title-md !text-[14px]">Risk Exposure Trend</h3>
+                           <span className="label-caps !text-[8px] opacity-40 uppercase">Telemetry window: Last 24 hours</span>
                         </div>
-                        <p className="vuln-desc">{v.desc}</p>
-                        {expanded[i] && (
-                          <div className="vuln-drop">
-                            <div className="vd-sec"><span className="label">Impact</span><p>{v.impact}</p></div>
-                            <div className="vd-sec"><span className="label fix text-green">Remediation</span><p className="text-green glow-text-sm">{v.fix}</p></div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="card glass-panel animate-fade-up delay-4 h-full">
-                  <div className="card-header"><Target size={18} className="text-red"/> <h3>Predicted Attack Flow</h3></div>
-                  <div className="card-body flex-col justify-center gap-16 py-16">
-                    <div className="path-node bg-dim"><User size={16} className="text-cyan"/> Target Entry <ArrowRight className="path-arrow"/></div>
-                    <div className="path-node bg-dim"><Unlock size={16} className="text-purple"/> Login Endpoint <ArrowRight className="path-arrow"/></div>
-                    <div className="path-node border-red danger-glow"><Zap size={16} className="text-red"/> Brute Force Attack <ArrowRight className="path-arrow text-red animate-bounce-down"/></div>
-                    <div className="path-node bg-dim"><Database size={16} className="text-orange"/> Admin Overwrite</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ROW 3: 65% / 35% */}
-              <div className="row grid-auto-sidebar">
-                 <div className="card glass-panel animate-fade-up delay-5 terminal p-0 h-full">
-                   <div className="term-header"><Terminal size={14} className="text-cyan"/> <span>SYSTEM.LOGS</span></div>
-                   <div className="term-body">
-                     {logs.map((l, i) => (
-                        <div key={i} className="log-line fade-log"><span style={{color: AI_AGENTS.find(a=>a.id===l.agent)?.color}}>[{l.agent.replace('agent-','').toUpperCase()}]</span> <span>{l.text}</span></div>
-                      ))}
-                      {state === 'scanning' && <div className="log-line text-cyan typing-cursor">_</div>}
-                      <div ref={logsRef} />
-                   </div>
-                 </div>
-
-                 <div className="card glass-panel animate-fade-up delay-6 ai-panel h-full overflow-hidden">
-                    <div className="ai-glow-bg"></div>
-                    <div className="card-header border-none mb-0"><Shield size={18} className="text-cyan"/> <h3 className="text-cyan drop-shadow-cyan">AI Synthesis</h3></div>
-                    <div className="card-body">
-                      <p className="ai-text">
-                        Enforce <b className="text-cyan">Rate Limiting</b> immediately to block brute-force viability. Apply <b className="text-purple">HTTPS</b> to strictly restrict session token interception across local network taps.
-                      </p>
                     </div>
-                 </div>
+                    <div className="flex-1 w-full min-h-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={stats?.risk_trend?.map((v, i) => ({ n: i, v })) || [] }>
+                          <defs>
+                            <linearGradient id="valGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#22D3EE" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#22D3EE" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <Area 
+                            type="monotone" 
+                            dataKey="v" 
+                            stroke="#22D3EE" 
+                            strokeWidth={3}
+                            fillOpacity={1} 
+                            fill="url(#valGrad)" 
+                            animationDuration={2000}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                </div>
               </div>
+            </motion.div>
+          )}
 
-            </div>
-          </div>
-        )}
+          {/* 2. TARGETS FLEET */}
+          {view === 'targets' && (
+            <motion.div 
+               key="targets" 
+               initial={{ opacity: 0, x: 20 }} 
+               animate={{ opacity: 1, x: 0 }} 
+               exit={{ opacity: 0, x: -20 }}
+               style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+            >
+               <div className="grid grid-cols-3 gap-24">
+                  {targets.map(t => (
+                    <AssetCard key={t.id} target={t} onAudit={() => runAudit(t)} />
+                  ))}
+               </div>
+            </motion.div>
+          )}
+
+          {/* 3. OPERATIONS */}
+          {view === 'history' && (
+            <motion.div 
+              key="history"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+            >
+              <ArchiveTable data={history} onOpen={openReportFromArchive} />
+            </motion.div>
+          )}
+
+          {/* 4. SECURITY REPORT */}
+          {view === 'report' && (
+            <motion.div 
+               key="report" 
+               initial={{ opacity: 0 }} 
+               animate={{ opacity: 1 }} 
+               exit={{ opacity: 0 }}
+               style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+            >
+               <div className="flex flex-col gap-32">
+                  <div className="flex justify-between items-start">
+                     <div className="flex flex-col gap-12">
+                        <button onClick={() => setView('targets')} className="flex items-center gap-8 text-[10px] font-bold text-primary hover:opacity-100 opacity-60 transition-opacity">
+                           <ArrowRight size={14} className="rotate-180" /> BACK TO INVENTORY
+                        </button>
+                        <h2 className="title-lg !text-[32px]">{selectedTarget?.name}</h2>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-32">
+                     <div className="col-span-4 flex flex-col gap-32">
+                        <div className="card flex flex-col items-center py-48 gap-24 bg-surface/40">
+                           <ExposureRing score={riskScore} size="large" />
+                        </div>
+                        
+                        <div className="flex flex-col gap-12">
+                           {vulns.map((v, i) => (
+                             <RiskAccordion key={i} vuln={v} />
+                           ))}
+                        </div>
+                     </div>
+
+                     <div className="col-span-8 flex flex-col gap-32">
+                        <div className="card h-[400px] !p-0 flex flex-col overflow-hidden border-primary/10">
+                           <div className="flex-1 relative">
+                              <AttackFlow vulns={vulns} />
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col h-[300px] card glass !p-0 border-primary/20 overflow-hidden relative">
+                  <div className="h-full">
+                     <TerminalPanel logs={logs} />
+                  </div>
+                </div>
+             </motion.div>
+          )}
+        </AnimatePresence>
       </main>
+      </div>
     </div>
   );
 }
