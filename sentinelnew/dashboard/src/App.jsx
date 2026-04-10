@@ -441,8 +441,20 @@ export default function App() {
                initial={{ opacity: 0, x: 20 }} 
                animate={{ opacity: 1, x: 0 }} 
                exit={{ opacity: 0, x: -20 }}
-               style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+               style={{ display: "flex", flexDirection: "column", gap: "32px", padding: "12px 0" }}
             >
+               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                       <h2 className="title-lg !text-[28px]">Assigned Targets</h2>
+                       <span className="label-caps opacity-60">Manage authorized cluster scanning nodes</span>
+                   </div>
+                   <button 
+                       onClick={() => setIsAddTargetModalOpen(true)} 
+                       className="btn btn-primary !py-12 !px-24"
+                   >
+                       + PROVISION NEW TARGET
+                   </button>
+               </div>
                <div className="grid grid-cols-3 gap-24">
                   {targets.map(t => (
                     <AssetCard key={t.id} target={t} onAudit={() => runAudit(t)} />
@@ -459,7 +471,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               style={{ display: "flex", flexDirection: "column", gap: "24px" }}
             >
-              <ArchiveTable data={history} onOpen={openReportFromArchive} />
+              <ArchiveTable history={history} onOpenReport={openReportFromArchive} />
             </motion.div>
           )}
 
