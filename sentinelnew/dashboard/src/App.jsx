@@ -281,6 +281,7 @@ export default function App() {
       <ScanOverlay show={showScanOverlay} onComplete={onScanAnimationComplete} />
 
       <aside
+        className="scrollbar-hide"
         style={{
           borderRight: "1px solid rgba(34,211,238,0.08)",
           background: "#06101F",
@@ -322,6 +323,7 @@ export default function App() {
         />
 
         <main
+          className="scrollbar-hide"
           style={{
             padding: "24px 28px 32px",
             flex: 1,
