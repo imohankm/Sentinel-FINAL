@@ -490,15 +490,15 @@ export default function App() {
                         
                         <div className="flex flex-col gap-12">
                            {vulns.map((v, i) => (
-                             <RiskAccordion key={i} vuln={v} />
+                             <RiskAccordion key={i} finding={v} />
                            ))}
                         </div>
                      </div>
 
                      <div className="col-span-8 flex flex-col gap-32">
                         <div className="card h-[400px] !p-0 flex flex-col overflow-hidden border-primary/10">
-                           <div className="flex-1 relative">
-                              <AttackFlow vulns={vulns} />
+                            <div className="flex-1 relative">
+                              <AttackFlow paths={vulns.map(v => v.title)} />
                            </div>
                         </div>
                      </div>
