@@ -32,13 +32,23 @@ export default function ScanOverlay({ show, onComplete }) {
   if (!show) return null;
 
   return (
-    <div className="scan-overlay glass-heavy">
-      <div className="bg-grid" />
+    <div style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(5, 8, 22, 0.85)',
+        backdropFilter: 'blur(24px)'
+    }}>
+      <div className="bg-cyber-grid" />
       
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center gap-48 relative z-10 max-w-4xl"
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '48px', position: 'relative', zIndex: 10, maxWidth: '800px', width: '100%' }}
       >
         <div className="flex flex-col items-center gap-16 text-center">
           <div className="relative">

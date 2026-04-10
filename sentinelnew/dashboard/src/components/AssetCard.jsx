@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Zap, Activity, AlertTriangle, Globe, ShieldAlert, Clock, ArrowRight } from 'lucide-react';
 
-export default function AssetCard({ target, onScan, onOpenReport }) {
+export default function AssetCard({ target, onAudit, onOpenReport }) {
   const getRiskStatus = (score) => {
     if (score >= 70) return { label: 'CRITICAL', className: 'badge-danger', icon: ShieldAlert };
     if (score >= 40) return { label: 'RISK_ELEVATED', className: 'badge-warning', icon: AlertTriangle };
@@ -71,7 +71,7 @@ export default function AssetCard({ target, onScan, onOpenReport }) {
       {/* BOTTOM ACTIONS */}
       <div className="flex gap-12 relative z-10">
         <button 
-          onClick={() => onScan(target)}
+          onClick={() => onAudit && onAudit(target)}
           className="btn btn-primary flex-1 !py-12"
         >
           <Zap size={16} />
