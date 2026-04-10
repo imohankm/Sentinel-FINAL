@@ -47,13 +47,16 @@ export default function App() {
   const [activity, setActivity] = useState(null);
   const [fullUser, setFullUser] = useState(null);
   
+  const [showSessionResume, setShowSessionResume] = useState(false);
+  const [pendingUser, setPendingUser] = useState(null);
+
   const pollInterval = useRef(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('sentinel_user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setView('home');
+      setPendingUser(JSON.parse(savedUser));
+      setShowSessionResume(true);
     }
   }, []);
 
@@ -529,6 +532,51 @@ export default function App() {
         </AnimatePresence>
       </main>
       </div>
+
+      {/* SESSION RESUME POPUP */}
+      <AnimatePresence>
+        {showSessionResume && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="card glass max-w-sm w-full shadow-2xl border-primary/20 flex flex-col items-center text-center p-32 gap-24 relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-primary/5 blur-[50px] rounded-full" />
+              <Shield size={48} className="text-primary glow-primary z-10" />
+              <div className="flex flex-col gap-8 z-10">
+                <h2 className="title-md !text-[20px]">Session Restored</h2>
+                <p className="text-text-secondary text-[12px]">Continue your previous Enterprise session or perform a clean logout?</p>
+              </div>
+              <div className="flex w-full gap-12 z-10 mt-8">
+                <button 
+                  onClick={() => {
+                    setUser(pendingUser);
+                    setView('home');
+                    setShowSessionResume(false);
+                    setPendingUser(null);
+                  }}
+                  className="btn btn-primary flex-1 !py-12"
+                >
+                  CONTINUE
+                </button>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('sentinel_user');
+                    setShowSessionResume(false);
+                    setPendingUser(null);
+                  }}
+                  className="btn btn-outline flex-1 !py-12 text-danger hover:border-danger hover:bg-danger/10"
+                >
+                  LOGOUT
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
